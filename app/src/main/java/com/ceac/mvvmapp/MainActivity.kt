@@ -8,10 +8,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
+import com.ceac.mvvmapp.navigation.AppNav
+import com.ceac.mvvmapp.navigation.Route
 import com.ceac.mvvmapp.ui.theme.MVVMAppTheme
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,29 +23,19 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MVVMAppTheme {
+                val navController = rememberNavController()
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                    AppNav(
+                        modifier = Modifier.padding(innerPadding),
+                        navController = navController,
+                        start = Route.Login,
+                        loginScreen = { Text("Login") },
+                        registerScreen = { Text("Register") },
+                        recoverPasswordScreen = { Text("Recover") },
+                        homeScreen = { Text("Home") }
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MVVMAppTheme {
-        Greeting("Android")
     }
 }
