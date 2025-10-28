@@ -1,6 +1,7 @@
 package com.ceac.mvvmapp.data.repository
 
 import com.ceac.mvvmapp.domain.repository.auth.AuthRepository
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -59,6 +60,16 @@ class FakeAuthRepository @Inject constructor() : AuthRepository {
         } else {
             // Devuelve un error si las credenciales no son válidas.
             Result.failure(Exception("Credenciales incorrectas"))
+        }
+    }
+
+    /// TODO Añadir comentarios
+    override suspend fun recoverPassword(email: String): Result<Unit> {
+        delay(800)
+        return if (email.endsWith("@ceac.com")) {
+            Result.success(Unit) // Simulamos envío correcto
+        } else {
+            Result.failure(Exception("No existe ninguna cuenta con ese email"))
         }
     }
 }
