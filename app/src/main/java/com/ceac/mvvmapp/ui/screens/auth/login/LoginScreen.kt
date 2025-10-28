@@ -73,13 +73,17 @@ fun LoginScreen(
     onPasswordChange: (String) -> Unit,
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
-    onRecoverClick: () -> Unit
+    onRecoverClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    val s = MVVMAppTheme.spacing // Sistema de espaciado consistente (Design System)
+    val s = MVVMAppTheme.spacing
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
+            // Padding del Scaffold/NavHost + nuestro spacing horizontal
+            .padding(contentPadding)
             .padding(horizontal = s.xl),
         contentAlignment = Alignment.Center
     ) {
@@ -92,7 +96,7 @@ fun LoginScreen(
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            // 📨 Campo de Email
+            // 📨 Email
             OutlinedTextField(
                 value = state.email,
                 onValueChange = onEmailChange,
@@ -113,7 +117,7 @@ fun LoginScreen(
                 )
             }
 
-            // Campo de Contraseña
+            // 🔑 Password
             OutlinedTextField(
                 value = state.password,
                 onValueChange = onPasswordChange,
@@ -132,7 +136,7 @@ fun LoginScreen(
                 )
             }
 
-            // Error general al enviar formulario
+            // Error de envío (backend / credenciales)
             state.submitError?.let {
                 Text(
                     text = it,
@@ -141,10 +145,10 @@ fun LoginScreen(
                 )
             }
 
-            // Botón de Login
+            // 🚀 Login
             Button(
                 onClick = onLoginClick,
-                enabled = state.isValid,
+                enabled = state.isValid && !state.isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (state.isLoading)
@@ -153,15 +157,16 @@ fun LoginScreen(
                     Text("Entrar")
             }
 
-            // Enlace para recuperar contraseña
+            // 🔁 Recuperar contraseña
             TextButton(
                 onClick = onRecoverClick,
+                enabled = !state.isLoading,
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text("¿Has olvidado la contraseña?")
             }
 
-            // Botón de Registro
+            // 🧾 Registro
             OutlinedButton(
                 onClick = onRegisterClick,
                 enabled = !state.isLoading,

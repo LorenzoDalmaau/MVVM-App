@@ -1,10 +1,8 @@
 package com.ceac.mvvmapp.navigation
 
-import android.widget.Toast
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.flow.Flow
 
@@ -14,41 +12,32 @@ import kotlinx.coroutines.flow.Flow
  * ----------------------------------------------------------------------------
  *
  * 🔹 Descripción general:
- * Este composable se encarga de **escuchar los eventos de navegación o UI**
- * emitidos por los `ViewModel` y ejecutar las acciones correspondientes
- * sobre el `NavController`.
+ * Este composable actúa como **intérprete de los eventos de UI** emitidos
+ * por los ViewModels. Escucha un flujo (`Flow<UiEvent>`) y ejecuta las
+ * acciones correspondientes (navegar, mostrar mensajes, volver atrás, etc.).
  *
- * Con esto conseguimos que los `ViewModel` **no conozcan directamente**
- * la navegación (ni usen NavController), manteniendo la arquitectura **limpia y desacoplada**.
+ * 🔹 Motivación:
+ * - Desacopla la lógica de negocio (ViewModel) del sistema de navegación (`NavController`).
+ * - Permite que la UI reaccione de forma declarativa ante los eventos sin romper
+ *   los principios de arquitectura limpia.
+ *
+ * 🔹 Flujo típico:
+ * ```
+ * ViewModel → _events.send(UiEvent.Navigate(Route.Home.route))
+ * UI → HandleNavigationEvents(...) → NavController.navigate("home")
+ * ```
  *
  * 🔹 Contexto arquitectónico:
- * - Pertenece a la capa **presentation / navigation**.
- * - Recibe un `Flow<UiEvent>` (normalmente del ViewModel) y reacciona ante él.
- *
- * 🔹 Por qué es importante:
- * Sin esta capa, los ViewModels deberían tener acceso al NavController,
- * lo cual **rompe el principio de separación de responsabilidades**.
+ * - Pertenece a la capa **presentation/navigation**.
+ * - Se ejecuta dentro del árbol Compose (normalmente al inicio del Entry).
  *
  * ----------------------------------------------------------------------------
- * 🔹 Uso típico:
+ * 🔹 Uso en un Entry:
  * ----------------------------------------------------------------------------
  * ```kotlin
  * val vm: LoginViewModel = hiltViewModel()
- * HandleNavigationEvents(navController, vm.events)
+ * HandleNavigationEvents(navController, snackbarHostState, vm.events)
  * ```
- *
- * Cuando el ViewModel emite, por ejemplo:
- * `_events.send(UiEvent.Navigate(Route.Home.route))`
- *
- * El `HandleNavigationEvents` detectará ese evento y navegará automáticamente.
- *
- * ----------------------------------------------------------------------------
- * 🔹 Extensiones posibles:
- * ----------------------------------------------------------------------------
- * - Mostrar `Snackbar` en lugar de `Toast`.
- * - Implementar una cola de eventos más compleja.
- * - Añadir navegación condicional (por permisos, sesiones, etc.)
- *
  * ----------------------------------------------------------------------------
  */
 @Composable
@@ -57,11 +46,12 @@ fun HandleNavigationEvents(
     snackbarHostState: SnackbarHostState,
     events: Flow<UiEvent>
 ) {
-    val context = LocalContext.current
-
     LaunchedEffect(Unit) {
+        // Escucha continua del flujo de eventos emitidos desde el ViewModel.
         events.collect { event ->
             when (event) {
+
+                // 🔹 Navegación hacia otra pantalla
                 is UiEvent.Navigate -> {
                     navController.navigate(event.route) {
                         launchSingleTop = event.singleTop
@@ -71,12 +61,14 @@ fun HandleNavigationEvents(
                     }
                 }
 
+                // 🔹 Volver atrás en el stack
                 is UiEvent.NavigateBack -> navController.popBackStack()
+
+                // 🔹 Mostrar mensaje en la interfaz
                 is UiEvent.ShowSnackbar -> {
-                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                    snackbarHostState.showSnackbar(event.message)
                 }
             }
         }
     }
 }
-

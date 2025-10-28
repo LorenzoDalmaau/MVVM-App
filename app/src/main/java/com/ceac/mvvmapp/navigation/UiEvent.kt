@@ -6,38 +6,41 @@ package com.ceac.mvvmapp.navigation
  * ----------------------------------------------------------------------------
  *
  * 🔹 Descripción general:
- * Esta sealed class define los **eventos de UI** que un `ViewModel` puede emitir
- * hacia la capa de presentación (UI). Es una forma elegante y segura de comunicar
- * intenciones sin acoplar la lógica de negocio con la interfaz.
+ * Esta sealed class define los **eventos unidireccionales de UI** que un `ViewModel`
+ * puede emitir hacia la capa de presentación (Compose).
  *
- * 🔹 Contexto arquitectónico:
- * - Pertenece a la capa **presentation** (entre ViewModel y la UI Compose).
- * - Facilita la comunicación “reactiva” (unidireccional):
- *      ViewModel → UiEvent → UI (HandleNavigationEvents)
- *
- * 🔹 Por qué usar una sealed class:
- * - Permite definir todos los tipos posibles de eventos en un solo lugar.
- * - Garantiza que cada tipo se maneje en un `when` exhaustivo.
+ * 🔹 Propósito:
+ * Garantizar una comunicación **segura, reactiva y desacoplada**
+ * entre ViewModel y la interfaz de usuario, siguiendo el patrón **MVI / UDF**.
  *
  * 🔹 Tipos de eventos definidos:
- * - `Navigate` → Navegar a una ruta.
- * - `NavigateBack` → Volver al destino anterior.
- * - `ShowSnackbar` → Mostrar un mensaje temporal (Toast/Snackbar).
+ * - `Navigate` → Navegar a una ruta específica.
+ * - `NavigateBack` → Retroceder en el back stack.
+ * - `ShowSnackbar` → Mostrar mensaje temporal.
  *
- * 🔹 Ejemplo de uso en ViewModel:
+ * 🔹 Ejemplo:
  * ```kotlin
  * _events.send(UiEvent.Navigate(Route.Home.route))
  * _events.send(UiEvent.ShowSnackbar("Inicio de sesión fallido"))
  * ```
+ *
+ * 🔹 Flujo:
+ * ViewModel → UiEvent → HandleNavigationEvents → UI/Navigation
  * ----------------------------------------------------------------------------
  */
 sealed class UiEvent {
+
+    /** 🔹 Navegación a una nueva ruta */
     data class Navigate(
         val route: String,
         val popUpTo: String? = null,
         val inclusive: Boolean = false,
         val singleTop: Boolean = true
     ) : UiEvent()
+
+    /** 🔹 Navegar hacia atrás */
     data object NavigateBack : UiEvent()
+
+    /** 🔹 Mostrar mensaje en pantalla */
     data class ShowSnackbar(val message: String) : UiEvent()
 }

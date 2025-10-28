@@ -16,6 +16,54 @@ import coil.request.ImageRequest
 import com.ceac.mvvmapp.domain.model.Product
 import com.ceac.mvvmapp.ui.theme.MVVMAppTheme
 
+/**
+ * ----------------------------------------------------------------------------
+ * HomeScreen.kt
+ * ----------------------------------------------------------------------------
+ *
+ * 🔹 Descripción general:
+ * Pantalla principal de la aplicación, responsable de **mostrar la lista de productos**.
+ *
+ * Esta función Composable representa la **UI pura**, sin lógica de negocio:
+ * simplemente reacciona al estado (`HomeUiState`) y muestra el contenido adecuado
+ * según los tres posibles escenarios:
+ *
+ * 1️⃣ **Cargando** → Spinner central (`CircularProgressIndicator`).
+ * 2️⃣ **Error** → Mensaje + botón de “Reintentar”.
+ * 3️⃣ **Éxito** → Lista de productos (`LazyColumn`).
+ *
+ * ----------------------------------------------------------------------------
+ * 🔹 Principios aplicados:
+ * ----------------------------------------------------------------------------
+ * ✅ **Declaratividad:** la UI refleja exactamente el estado actual.
+ * ✅ **Inmutabilidad:** no modifica nada, solo recibe datos y callbacks.
+ * ✅ **Reactividad:** Compose se recompone automáticamente si el `state` cambia.
+ * ✅ **Desacoplamiento:** no conoce ViewModels, ni navegación, ni lógica de datos.
+ *
+ * ----------------------------------------------------------------------------
+ * 🔹 Parámetros:
+ * ----------------------------------------------------------------------------
+ * @param state Estado actual de la pantalla (`HomeUiState`).
+ * @param onRetry Callback ejecutado cuando el usuario pulsa "Reintentar" tras un error.
+ *
+ * ----------------------------------------------------------------------------
+ * 🔹 Diseño y estructura:
+ * ----------------------------------------------------------------------------
+ * - Usa `when` para renderizar un estado a la vez (loading, error o lista).
+ * - Usa `MVVMAppTheme.spacing` para mantener consistencia visual (márgenes y padding).
+ * - Renderiza los productos en una `LazyColumn` para rendimiento óptimo.
+ *
+ * ----------------------------------------------------------------------------
+ * 🔹 Ejemplo de uso:
+ * ----------------------------------------------------------------------------
+ * ```
+ * HomeScreen(
+ *     state = uiState,
+ *     onRetry = { viewModel.load() }
+ * )
+ * ```
+ * ----------------------------------------------------------------------------
+ */
 @Composable
 fun HomeScreen(
     state: HomeUiState,
@@ -24,15 +72,32 @@ fun HomeScreen(
     val s = MVVMAppTheme.spacing
 
     when {
-        state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // 🌀 Estado de carga
+        state.isLoading -> Box(
+            Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
             CircularProgressIndicator()
         }
-        state.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(s.md)) {
-                Text(state.error, color = MaterialTheme.colorScheme.error)
+
+        // ⚠️ Estado de error
+        state.error != null -> Box(
+            Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(s.md)
+            ) {
+                Text(
+                    state.error,
+                    color = MaterialTheme.colorScheme.error
+                )
                 OutlinedButton(onClick = onRetry) { Text("Reintentar") }
             }
         }
+
+        // ✅ Estado de éxito: lista de productos
         else -> LazyColumn(
             contentPadding = PaddingValues(vertical = s.lg, horizontal = s.lg),
             verticalArrangement = Arrangement.spacedBy(s.lg)
@@ -44,6 +109,29 @@ fun HomeScreen(
     }
 }
 
+/**
+ * ----------------------------------------------------------------------------
+ * ProductCard.kt (subcomponente privado dentro de HomeScreen)
+ * ----------------------------------------------------------------------------
+ *
+ * 🔹 Descripción:
+ * Componente visual que representa un producto individual dentro de la lista.
+ * Muestra su imagen, nombre, descripción y precio, siguiendo el estilo Material3.
+ *
+ * ----------------------------------------------------------------------------
+ * 🔹 Por qué está separado:
+ * - Mejora la legibilidad del código de la pantalla principal.
+ * - Facilita la reutilización y los tests visuales (previews).
+ * - Se puede convertir fácilmente en un composable público si se reutiliza en otros módulos.
+ *
+ * ----------------------------------------------------------------------------
+ * 🔹 Detalles técnicos:
+ * - Usa `Card` con esquinas grandes (`MaterialTheme.shapes.large`).
+ * - `AsyncImage` de la librería **Coil** para carga eficiente de imágenes.
+ * - `ContentScale.Crop` recorta la imagen para mantener proporciones.
+ * - Usa `TextOverflow.Ellipsis` para evitar textos desbordados.
+ * ----------------------------------------------------------------------------
+ */
 @Composable
 private fun ProductCard(product: Product) {
     val s = MVVMAppTheme.spacing
@@ -53,6 +141,7 @@ private fun ProductCard(product: Product) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Column {
+            // Imagen del producto
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(product.imageUrl)
@@ -65,8 +154,12 @@ private fun ProductCard(product: Product) {
                 contentScale = ContentScale.Crop
             )
 
+            // Texto del producto
             Column(Modifier.padding(s.lg)) {
-                Text(product.name, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    product.name,
+                    style = MaterialTheme.typography.titleLarge
+                )
                 Spacer(Modifier.height(s.xs))
                 Text(
                     product.description,
@@ -84,5 +177,3 @@ private fun ProductCard(product: Product) {
         }
     }
 }
-
-

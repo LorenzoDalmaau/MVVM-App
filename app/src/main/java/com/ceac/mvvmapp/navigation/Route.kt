@@ -9,62 +9,47 @@ import androidx.navigation.navArgument
  * ----------------------------------------------------------------------------
  *
  * 🔹 Descripción general:
- * Este archivo define todas las **rutas de navegación** de la aplicación.
- * Cada pantalla se representa como un `data object` dentro de la sealed class `Route`,
- * lo que permite tener una navegación **tipada, mantenible y escalable**.
+ * Define todas las **rutas de navegación tipadas** de la app.
+ * Cada pantalla se representa como un `data object` dentro de una `sealed class`.
+ *
+ * 🔹 Por qué usar este patrón:
+ * - Evita errores tipográficos (sin strings mágicos).
+ * - Facilita la autocompletación.
+ * - Centraliza las rutas para toda la app.
+ * - Permite añadir parámetros con `navArgument`.
  *
  * 🔹 Contexto arquitectónico:
- * - Pertenece a la capa **navigation**, dentro de la presentación (UI layer).
- * - Se utiliza junto con `NavHost` (AppNav.kt) y `NavController` para definir
- *   y controlar las pantallas accesibles en la app.
+ * - Pertenece a la **capa de navegación (UI layer)**.
+ * - Se utiliza junto con `AppNav.kt` y `HandleNavigationEvents.kt`.
  *
- * 🔹 Por qué usar una sealed class:
- * - Evita errores por escribir mal los nombres de las rutas (sin strings sueltos).
- * - Permite extender fácilmente nuevas pantallas.
- * - Centraliza todas las rutas de la app en un único punto de referencia.
- *
- * ----------------------------------------------------------------------------
  * 🔹 Ejemplo de uso:
- * ----------------------------------------------------------------------------
  * ```kotlin
  * navController.navigate(Route.Home.route)
  * ```
- *
- * ----------------------------------------------------------------------------
- * 🔹 Extensiones posibles:
- * ----------------------------------------------------------------------------
- * - Añadir rutas con parámetros (por ejemplo, “user/{userId}”).
- * - Incluir listas de argumentos esperados con `navArgument()`.
  * ----------------------------------------------------------------------------
  */
 sealed class Route(val route: String) {
 
-    /** 🧑‍💻 Pantalla de inicio de sesión */
+    /** 🔐 Pantalla de inicio de sesión */
     data object Login : Route("login")
 
-    /** 📝 Pantalla de registro de usuario */
+    /** 📝 Pantalla de registro */
     data object Register : Route("register")
 
-    /** 🔑 Pantalla para recuperar la contraseña */
+    /** 🔑 Pantalla de recuperación de contraseña */
     data object RecoverPassword : Route("recover_password")
 
-    /** 🏠 Pantalla principal tras iniciar sesión */
+    /** 🏠 Pantalla principal (Home) */
     data object Home : Route("home")
+
+    /** 🗺️ Pantalla del mapa (ejemplo de futura feature) */
     data object Map : Route("map")
 
     // ------------------------------------------------------------------------
-    // Ejemplo comentado: Ruta con argumentos
+    // 💡 Ejemplo avanzado: Ruta con argumentos
     // ------------------------------------------------------------------------
-    // En caso de necesitar navegación con parámetros (por ejemplo, un ID de usuario)
-    // puedes usar el siguiente patrón:
-    //
     // data object UserDetail : Route("user/{userId}") {
-    //     // Definimos los argumentos esperados
     //     val args = listOf(navArgument("userId") { type = NavType.IntType })
-    //
-    //     // Función helper para construir la ruta con el parámetro
     //     fun build(userId: Int) = "user/$userId"
     // }
-
-
 }

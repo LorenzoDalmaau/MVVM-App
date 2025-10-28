@@ -6,6 +6,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.SnackbarHostState
+import com.ceac.mvvmapp.navigation.navGraph.authGraph
+import com.ceac.mvvmapp.navigation.navGraph.homeGraph
 
 /**
  * ----------------------------------------------------------------------------
@@ -13,42 +15,39 @@ import androidx.compose.material3.SnackbarHostState
  * ----------------------------------------------------------------------------
  *
  * 🔹 Descripción general:
- * Composable raíz que **configura el grafo de navegación** de la app usando
- * Navigation-Compose. Define las rutas disponibles y conecta cada destino
- * con su pantalla correspondiente.
+ * Composable **raíz de navegación** que configura el `NavHost` y registra
+ * los **subgrafos por feature** (auth, home, etc.). Se ejecuta desde `MainActivity`
+ * y orquesta cómo se mueven las pantallas dentro de la app.
  *
- * 🔹 Por qué así (decisión de diseño):
- * - Recibe las pantallas por **lambdas @Composable** (inyección por parámetros).
- *   Esto desacopla la navegación del código de UI y facilita **reutilización y testeo**.
- * - El **start** se pasa como `Route` para poder cambiar el destino inicial
- *   (por ejemplo, onboarding vs. login) sin tocar el grafo.
+ * 🔹 Decisiones de arquitectura:
+ * - **NavHost único** en la Activity (patrón *Single-Activity*).
+ * - **Subgrafos por feature** (`authGraph`, `homeGraph`) para escalar y mantener limpio.
+ * - Estado de UI transversal **inyectado** (p. ej. `SnackbarHostState`) desde arriba.
+ * - `contentPadding` propagado para respetar paddings del `Scaffold` (insets, barras, etc.).
  *
- * 🔹 Uso típico:
- * Se invoca desde `MainActivity`:
- * ```
- * AppNav(
- *   navController = rememberNavController(),
- *   start = Route.Login,
- *   loginScreen = { LoginScreen(...) },
- *   registerScreen = { RegisterScreen(...) },
- *   recoverPasswordScreen = { RecoverPasswordScreen(...) },
- *   homeScreen = { HomeScreen(...) }
- * )
- * ```
+ * 🔹 Por qué no metemos UI aquí:
+ * Este nivel solo **declara el grafo**. El *wiring* (VM + eventos + pantalla) vive
+ * en los `Entry` de cada feature. Resultado: `MainActivity` minimalista,
+ * navegación modular y pantallas fácilmente testeables.
  *
- * 🔹 Cómo añadir una nueva pantalla:
- * 1) Declara la ruta en `Route.kt`.
- * 2) Añade su `composable(...)` aquí dentro del `NavHost`.
- * 3) Pasa la lambda correspondiente desde `MainActivity`.
+ * 🔹 Parámetros:
+ * @param navController       Controlador de navegación (back stack, navigate, etc.).
+ * @param snackbarHostState   Snackbar global del `Scaffold` de la Activity.
+ * @param contentPadding      Padding del contenedor superior (status, nav bar, etc.).
+ * @param modifier            Modificador para el contenedor del `NavHost` si se requiere.
+ * @param start               Ruta de inicio (login por defecto; útil para onboarding/sesión).
  *
- * 🔹 Parámetros en rutas (chuleta):
- * - En `Route.kt`: `data object UserDetail : Route("user/{userId}")`
- * - En `AppNav`: `composable(Route.UserDetail.route, arguments = Route.UserDetail.args) { ... }`
- * - Para navegar: `navController.navigate("user/${id}")`
+ * 🔹 Flujo típico:
+ * MainActivity → AppNav → (authGraph | homeGraph) → *Entry* de cada pantalla → UI
+ *
+ * 🔹 Cómo añadir una feature nueva:
+ * 1) Crea `navigation/navGraph/<Feature>Graph.kt` con su extensión `NavGraphBuilder.<feature>Graph(...)`.
+ * 2) Crea sus `Entry` (`<Pantalla>Entry.kt`) que hagan el wiring VM/UI.
+ * 3) Registra el subgrafo aquí (como `settingsGraph(...)`).
+ * 4) Define su(s) ruta(s) en `Route.kt`.
  *
  * ----------------------------------------------------------------------------
  */
-
 @Composable
 fun AppNav(
     navController: NavHostController,
@@ -57,19 +56,23 @@ fun AppNav(
     modifier: Modifier = Modifier,
     start: Route = Route.Login
 ) {
+    // El NavHost es el “contenedor” del grafo. Aquí indicamos la ruta inicial y
+    // añadimos los subgrafos de cada feature.
     NavHost(
         navController = navController,
         startDestination = start.route,
         modifier = modifier
     ) {
-        // Subgrafo de autenticación
+        // 🔐 Subgrafo de autenticación (Login, Register, Recover)
+        // Se le pasa `snackbarHostState` y `contentPadding` para que cada Entry
+        // pueda mostrar snackbars y respetar el layout del Scaffold.
         authGraph(
             navController = navController,
             snackbarHostState = snackbarHostState,
             contentPadding = contentPadding
         )
 
-        // Subgrafo del Home (y lo que cuelgue)
+        // 🏠 Subgrafo de Home (y futuras pantallas colgando de Home)
         homeGraph(
             navController = navController,
             snackbarHostState = snackbarHostState,

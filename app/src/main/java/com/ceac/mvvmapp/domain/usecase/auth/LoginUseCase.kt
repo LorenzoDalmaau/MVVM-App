@@ -9,39 +9,56 @@ import javax.inject.Inject
  * ----------------------------------------------------------------------------
  *
  * 🔹 Descripción general:
- * Este caso de uso encapsula la **lógica de negocio asociada al inicio de sesión (login)**.
- * En lugar de que el ViewModel interactúe directamente con el repositorio,
- * delega esta responsabilidad en un *use case* (caso de uso).
+ * Este **caso de uso** encapsula la lógica de negocio relacionada con el proceso
+ * de **inicio de sesión (login)** del usuario.
+ *
+ * Su misión es **intermediar entre la capa de presentación (ViewModel) y el repositorio**,
+ * asegurando que el ViewModel no tenga que preocuparse por la lógica de autenticación.
+ * Esto mantiene la **UI libre de lógica de negocio**, respetando los principios de
+ * **Clean Architecture**.
  *
  * 🔹 Contexto arquitectónico:
- * - Pertenece a la **capa de dominio (domain layer)** dentro de la arquitectura **Clean Architecture**.
- * - En esta capa se definen las **reglas de negocio puras**, independientes de frameworks
- *   o detalles de infraestructura (por ejemplo, Retrofit, Room o Firebase).
- * - Un *UseCase* representa una **acción o proceso de negocio concreto**, en este caso “iniciar sesión”.
+ * - Pertenece a la **capa de dominio (Domain Layer)**.
+ * - Los *use cases* definen **acciones de negocio concretas** y suelen ser *unitarios*:
+ *   “Login”, “GetUserProfile”, “UpdatePassword”, etc.
+ * - Cada uno se encarga de **una única responsabilidad** (principio *SRP* de SOLID).
  *
- * 🔹 Responsabilidad:
- * - Actuar como intermediario entre el `ViewModel` y el `AuthRepository`.
- * - Aplicar validaciones simples, transformaciones o preprocesamientos si fuese necesario.
- * - Mantener la lógica de negocio **fuera de la UI**.
+ * 🔹 Responsabilidades del caso de uso:
+ * 1. Recibir las entradas del ViewModel (`email`, `password`).
+ * 2. Aplicar validaciones o transformaciones simples (como `trim()`).
+ * 3. Delegar la operación al repositorio (`AuthRepository`).
+ * 4. Devolver un `Result<Unit>` que indica si la operación tuvo éxito o falló.
+ *
+ * 🔹 Por qué es útil:
+ * - Permite **testear la lógica de negocio de forma aislada** (sin UI ni backend real).
+ * - Facilita el **mantenimiento y escalabilidad**: si cambia la forma de login (por token, OAuth...),
+ *   solo se modifica este caso de uso.
+ * - Evita duplicar lógica en los ViewModels.
  *
  * 🔹 Inyección de dependencias:
- * - Se usa `@Inject` para que Hilt pueda proveer automáticamente una instancia de `AuthRepository`
- *   cuando se cree el `LoginUseCase`.
+ * - `@Inject` permite que Hilt cree automáticamente una instancia del caso de uso
+ *   e inyecte el repositorio (`AuthRepository`) que necesita.
  *
  * 🔹 Operador `invoke`:
- * - Permite ejecutar el caso de uso como si fuera una función directamente:
+ * - Permite ejecutar el caso de uso como si fuera una función:
  *   ```kotlin
  *   val result = loginUseCase(email, password)
  *   ```
- * - Mejora la legibilidad del código en el ViewModel.
+ *   En lugar de:
+ *   ```kotlin
+ *   val result = loginUseCase.invoke(email, password)
+ *   ```
+ * - Mejora la legibilidad en el ViewModel.
  *
- * 🔹 Lógica actual:
- * - Elimina posibles espacios en blanco del email (`trim()`).
- * - Llama al método `login()` del repositorio y devuelve su resultado.
- *
- * 🔹 Ejemplo de flujo:
+ * 🔹 Flujo de ejecución:
  * ```
- * LoginViewModel → LoginUseCase → AuthRepository → Backend (o FakeRepo)
+ * LoginViewModel
+ *     ↓
+ * LoginUseCase
+ *     ↓
+ * AuthRepository
+ *     ↓
+ * FakeAuthRepository o AuthRepositoryImpl
  * ```
  *
  * ----------------------------------------------------------------------------
@@ -51,14 +68,17 @@ class LoginUseCase @Inject constructor(
 ) {
 
     /**
-     * Ejecuta el proceso de login a través del repositorio de autenticación.
+     * Ejecuta el proceso de login delegando en el repositorio.
      *
-     * @param email    Correo electrónico del usuario.
-     * @param password Contraseña del usuario.
-     * @return Un objeto `Result<Unit>` con el resultado del intento de login.
+     * @param email    Correo electrónico introducido por el usuario.
+     * @param password Contraseña introducida por el usuario.
+     * @return Un objeto `Result<Unit>` que indica el éxito o el fallo del inicio de sesión.
      *
-     * - Si las credenciales son válidas, devuelve `Result.success(Unit)`.
-     * - Si son incorrectas o hay un error, devuelve `Result.failure(Exception)`.
+     * - `Result.success(Unit)` → Login exitoso.
+     * - `Result.failure(Exception)` → Error (credenciales inválidas, usuario no encontrado, etc.).
+     *
+     * Este método es `suspend` porque normalmente implica una operación asíncrona
+     * (como una llamada a red o una consulta en base de datos).
      */
     suspend operator fun invoke(email: String, password: String): Result<Unit> =
         repo.login(email.trim(), password)

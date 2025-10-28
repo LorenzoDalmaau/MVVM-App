@@ -16,36 +16,45 @@ import javax.inject.Singleton
  * ----------------------------------------------------------------------------
  *
  * 🔹 Descripción general:
- * Este archivo define un **módulo de inyección de dependencias (DI)** para Hilt.
- * Su objetivo es decirle a Hilt **cómo proporcionar las implementaciones concretas**
- * cuando una clase (por ejemplo, un ViewModel o un UseCase) necesita una interfaz.
+ * Este archivo define un **módulo de inyección de dependencias (Dependency Injection Module)**.
+ * Su propósito es decirle a **Hilt** qué implementación concreta debe usar cuando
+ * se solicite una interfaz en cualquier parte del proyecto.
  *
- * 🔹 Contexto arquitectónico:
- * - Pertenece a la **capa de inyección de dependencias (di)** del proyecto.
- * - Aquí se establecen los **enlaces (bindings)** entre las interfaces de dominio
- *   y sus implementaciones concretas de la capa de datos.
- * - Esto permite cumplir el **principio de inversión de dependencias (D de SOLID)**:
- *   las capas superiores dependen de abstracciones, no de implementaciones.
+ * 🔹 Rol dentro de la arquitectura:
+ * Pertenece a la **capa `di/` (Dependency Injection)**, encargada de conectar:
+ *  - Las **interfaces de dominio (Domain Layer)** → definidas como contratos.
+ *  - Con las **implementaciones concretas (Data Layer)** → repositorios reales o “fake”.
  *
- * 🔹 Funcionamiento:
- * 1. `@Module`: indica que esta clase contiene instrucciones para construir dependencias.
- * 2. `@InstallIn(SingletonComponent::class)`:
- *     - Define el **alcance (scope)** del módulo.
- *     - En este caso, las dependencias vivirán **durante toda la aplicación** (Singleton).
- * 3. `@Binds`: le dice a Hilt qué implementación usar cuando alguien solicite una interfaz.
- *     - Aquí se indica que siempre que se solicite `AuthRepository`,
- *       se inyecte una instancia de `FakeAuthRepository`.
- * 4. `@Singleton`: asegura que se use **una única instancia** compartida en toda la app.
+ * Gracias a este módulo, el código del ViewModel o los UseCases **no necesitan saber**
+ * qué clase específica se está usando.
+ * Solo conocen la interfaz → lo que mantiene el sistema desacoplado y fácilmente reemplazable.
  *
- * 🔹 Ejemplo de flujo:
- * - `LoginUseCase` solicita un `AuthRepository`.
- * - Hilt busca en los módulos registrados cómo crearlo.
- * - Encuentra este binding → devuelve una instancia de `FakeAuthRepository`.
+ * 🔹 Principios aplicados:
+ * - **Inversión de dependencias (D - SOLID):**
+ *   Las capas superiores dependen de abstracciones (interfaces), no de implementaciones.
+ * - **Open/Closed principle:**
+ *   Podemos añadir nuevas implementaciones sin tocar el código que las usa.
  *
- * 🔹 Próximos pasos (cuando haya backend real):
- * - Reemplazar `FakeAuthRepository` por una implementación real (por ejemplo, `AuthRepositoryImpl`)
- *   que consuma una API mediante Retrofit o use una base de datos local (Room).
+ * 🔹 Anotaciones clave:
+ * - `@Module`: indica a Hilt que esta clase define cómo construir dependencias.
+ * - `@InstallIn(SingletonComponent::class)`:
+ *   Especifica que las dependencias declaradas en este módulo estarán disponibles
+ *   durante **todo el ciclo de vida de la aplicación** (Singleton scope).
+ * - `@Binds`: se usa en funciones abstractas para decir:
+ *   “Cuando alguien pida una interfaz X, inyecta esta implementación Y”.
+ * - `@Singleton`: garantiza que todas las inyecciones de ese tipo compartirán
+ *   **la misma instancia global** (ideal para repositorios).
  *
+ * 🔹 Ejemplo de flujo de inyección:
+ * 1. Un `LoginUseCase` necesita un `AuthRepository`.
+ * 2. Hilt busca en los módulos registrados cómo crearlo.
+ * 3. Encuentra este `AppModule`, ve el `@Binds` → y crea un `FakeAuthRepository`.
+ * 4. Esa instancia se inyecta automáticamente en el `UseCase`.
+ *
+ * 🔹 Ventaja:
+ * Si en un futuro tienes una clase real `AuthRepositoryImpl`, solo tienes que cambiar
+ * el binding aquí, y toda la aplicación pasará a usar la nueva implementación
+ * sin modificar ni un solo ViewModel o UseCase.
  * ----------------------------------------------------------------------------
  */
 @Module
@@ -53,10 +62,14 @@ import javax.inject.Singleton
 abstract class AppModule {
 
     /**
-     * Enlaza la interfaz `AuthRepository` con su implementación concreta `FakeAuthRepository`.
+     * 🔐 Enlace entre `AuthRepository` (interfaz de dominio)
+     * y `FakeAuthRepository` (implementación de datos simulada).
      *
-     * @param impl Implementación que se inyectará cuando se solicite `AuthRepository`.
-     * @return Una instancia lista para usar de tipo `AuthRepository`.
+     * Siempre que una clase pida un `AuthRepository`, Hilt le proporcionará
+     * una instancia de `FakeAuthRepository`.
+     *
+     * @param impl Implementación concreta que se inyectará.
+     * @return Una instancia gestionada por Hilt como `AuthRepository`.
      */
     @Binds
     @Singleton
@@ -64,7 +77,19 @@ abstract class AppModule {
         impl: FakeAuthRepository
     ): AuthRepository
 
-    // TODO Añadir comentarios
-    @Binds @Singleton
-    abstract fun bindProductRepository(impl: FakeProductRepository): ProductRepository
+    /**
+     * 🏪 Enlace entre `ProductRepository` (interfaz de dominio)
+     * y `FakeProductRepository` (implementación simulada).
+     *
+     * Este binding se usa para inyectar datos mock en pantallas como Home,
+     * sin depender de una API real.
+     *
+     * En producción, este binding podría reemplazarse por una clase como:
+     * `RemoteProductRepository` o `ProductRepositoryImpl`.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindProductRepository(
+        impl: FakeProductRepository
+    ): ProductRepository
 }
