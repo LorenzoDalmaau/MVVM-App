@@ -80,7 +80,19 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     // 🧾 Resto de destinos fuera del scope de esta rama → stubs temporales
-                    registerScreen = { Text("Register (stub)") },
+                    registerScreen = {
+                        val vm: com.ceac.mvvmapp.ui.screens.auth.register.RegisterViewModel = hiltViewModel()
+                        HandleNavigationEvents(navController, vm.events)
+                        val state by vm.state.collectAsState()
+                        com.ceac.mvvmapp.ui.screens.auth.register.RegisterScreen(
+                            state = state,
+                            onEmailChange = vm::onEmailChange,
+                            onPasswordChange = vm::onPasswordChange,
+                            onRepeatChange = vm::onRepeatChange,
+                            onRegisterClick = vm::onRegisterClick,
+                            onBackClick = vm::onBackClick
+                        )
+                    },
                     recoverPasswordScreen = {
                         val vm: com.ceac.mvvmapp.ui.screens.auth.recover.RecoverPasswordViewModel = hiltViewModel()
                         HandleNavigationEvents(navController, vm.events)

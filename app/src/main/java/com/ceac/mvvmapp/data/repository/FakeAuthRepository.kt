@@ -72,4 +72,16 @@ class FakeAuthRepository @Inject constructor() : AuthRepository {
             Result.failure(Exception("No existe ninguna cuenta con ese email"))
         }
     }
+
+    /// TODO Añadir comentarios
+    override suspend fun register(email: String, password: String): Result<Unit> {
+        kotlinx.coroutines.delay(800)
+        return when {
+            !email.endsWith("@ceac.com") ->
+                Result.failure(Exception("Solo aceptamos emails @ceac.com en el mock"))
+            password.length < 6 ->
+                Result.failure(Exception("La contraseña debe tener al menos 6 caracteres"))
+            else -> Result.success(Unit)
+        }
+    }
 }
