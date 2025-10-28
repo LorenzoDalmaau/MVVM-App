@@ -1,14 +1,11 @@
 package com.ceac.mvvmapp.navigation
 
-import android.widget.Toast
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import kotlinx.coroutines.flow.Flow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.SnackbarHostState
 
 /**
  * ----------------------------------------------------------------------------
@@ -51,36 +48,32 @@ import kotlinx.coroutines.flow.Flow
  *
  * ----------------------------------------------------------------------------
  */
+
 @Composable
 fun AppNav(
     navController: NavHostController,
+    snackbarHostState: SnackbarHostState,
+    contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
-    start: Route = Route.Login,
-    // 🧩 Lambdas de pantallas: aquí inyectamos la UI de cada destino.
-    loginScreen: @Composable () -> Unit,
-    registerScreen: @Composable () -> Unit,
-    recoverPasswordScreen: @Composable () -> Unit,
-    homeScreen: @Composable () -> Unit,
+    start: Route = Route.Login
 ) {
-    // NavHost: contenedor del grafo de navegación.
     NavHost(
         navController = navController,
         startDestination = start.route,
         modifier = modifier
     ) {
-        // Cada "composable" asocia una ruta con su contenido UI.
-        composable(Route.Login.route) { loginScreen() }
-        composable(Route.Register.route) { registerScreen() }
-        composable(Route.RecoverPassword.route) { recoverPasswordScreen() }
-        composable(Route.Home.route) { homeScreen() }
+        // Subgrafo de autenticación
+        authGraph(
+            navController = navController,
+            snackbarHostState = snackbarHostState,
+            contentPadding = contentPadding
+        )
 
-        // 🔖 Ejemplo (comentado) de destino con parámetros:
-        // composable(
-        //   route = Route.UserDetail.route,
-        //   arguments = Route.UserDetail.args
-        // ) { backStackEntry ->
-        //     val userId = backStackEntry.arguments?.getInt("userId") ?: return@composable
-        //     UserDetailScreen(userId = userId)
-        // }
+        // Subgrafo del Home (y lo que cuelgue)
+        homeGraph(
+            navController = navController,
+            snackbarHostState = snackbarHostState,
+            contentPadding = contentPadding
+        )
     }
 }

@@ -1,6 +1,7 @@
 package com.ceac.mvvmapp.navigation
 
 import android.widget.Toast
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
@@ -51,7 +52,11 @@ import kotlinx.coroutines.flow.Flow
  * ----------------------------------------------------------------------------
  */
 @Composable
-fun HandleNavigationEvents(navController: NavHostController, events: Flow<UiEvent>) {
+fun HandleNavigationEvents(
+    navController: NavHostController,
+    snackbarHostState: SnackbarHostState,
+    events: Flow<UiEvent>
+) {
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
