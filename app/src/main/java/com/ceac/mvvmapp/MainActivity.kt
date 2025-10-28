@@ -104,7 +104,15 @@ class MainActivity : ComponentActivity() {
                             onBackClick = vm::onBackClick
                         )
                     },
-                    homeScreen = { Text("Home (stub)") }
+                    homeScreen = {
+                        val vm: com.ceac.mvvmapp.ui.screens.home.HomeViewModel = hiltViewModel()
+                        val state by vm.state.collectAsState()
+                        com.ceac.mvvmapp.ui.screens.home.HomeScreen(
+                            state = state,
+                            onRetry = vm::load
+                        )
+                    }
+
                 )
             }
         }

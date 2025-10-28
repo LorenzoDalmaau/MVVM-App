@@ -1,4 +1,4 @@
-package com.ceac.mvvmapp.domain.usecase
+package com.ceac.mvvmapp.domain.usecase.auth
 
 import com.ceac.mvvmapp.domain.repository.auth.AuthRepository
 import javax.inject.Inject

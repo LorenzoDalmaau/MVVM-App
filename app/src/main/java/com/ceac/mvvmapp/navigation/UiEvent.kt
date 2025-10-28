@@ -32,13 +32,12 @@ package com.ceac.mvvmapp.navigation
  * ----------------------------------------------------------------------------
  */
 sealed class UiEvent {
-
-    /** 🚀 Evento para navegar hacia una ruta específica */
-    data class Navigate(val route: String) : UiEvent()
-
-    /** ⬅️ Evento para retroceder en la pila de navegación */
+    data class Navigate(
+        val route: String,
+        val popUpTo: String? = null,
+        val inclusive: Boolean = false,
+        val singleTop: Boolean = true
+    ) : UiEvent()
     data object NavigateBack : UiEvent()
-
-    /** 💬 Evento para mostrar mensajes tipo snackbar o toast */
     data class ShowSnackbar(val message: String) : UiEvent()
 }

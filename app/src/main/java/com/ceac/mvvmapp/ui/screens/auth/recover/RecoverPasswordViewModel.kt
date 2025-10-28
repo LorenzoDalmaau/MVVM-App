@@ -4,7 +4,7 @@ import android.util.Patterns
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ceac.mvvmapp.domain.usecase.RecoverPasswordUseCase
+import com.ceac.mvvmapp.domain.usecase.auth.RecoverPasswordUseCase
 import com.ceac.mvvmapp.navigation.UiEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

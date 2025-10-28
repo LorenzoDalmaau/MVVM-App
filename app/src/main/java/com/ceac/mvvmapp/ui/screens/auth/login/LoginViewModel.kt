@@ -4,7 +4,7 @@ import android.util.Patterns
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ceac.mvvmapp.domain.usecase.LoginUseCase
+import com.ceac.mvvmapp.domain.usecase.auth.LoginUseCase
 import com.ceac.mvvmapp.navigation.Route
 import com.ceac.mvvmapp.navigation.UiEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -130,7 +130,13 @@ class LoginViewModel @Inject constructor(
 
         // 5️⃣ Resultado del login
         result.onSuccess {
-            _events.send(UiEvent.Navigate(Route.Home.route))
+            _events.send(
+                UiEvent.Navigate(
+                    route = Route.Home.route,
+                    popUpTo = Route.Login.route,
+                    inclusive = true
+                )
+            )
         }.onFailure { ex ->
             _state.value = _state.value.copy(
                 submitError = ex.message ?: "Error desconocido"

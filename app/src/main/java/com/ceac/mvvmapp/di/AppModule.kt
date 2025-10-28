@@ -2,6 +2,8 @@ package com.ceac.mvvmapp.di
 
 import com.ceac.mvvmapp.domain.repository.auth.AuthRepository
 import com.ceac.mvvmapp.data.repository.FakeAuthRepository
+import com.ceac.mvvmapp.data.repository.FakeProductRepository
+import com.ceac.mvvmapp.domain.repository.ProductRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -61,4 +63,8 @@ abstract class AppModule {
     abstract fun bindAuthRepository(
         impl: FakeAuthRepository
     ): AuthRepository
+
+    // TODO Añadir comentarios
+    @Binds @Singleton
+    abstract fun bindProductRepository(impl: FakeProductRepository): ProductRepository
 }

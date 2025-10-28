@@ -57,7 +57,15 @@ fun HandleNavigationEvents(navController: NavHostController, events: Flow<UiEven
     LaunchedEffect(Unit) {
         events.collect { event ->
             when (event) {
-                is UiEvent.Navigate -> navController.navigate(event.route)
+                is UiEvent.Navigate -> {
+                    navController.navigate(event.route) {
+                        launchSingleTop = event.singleTop
+                        event.popUpTo?.let { target ->
+                            popUpTo(target) { inclusive = event.inclusive }
+                        }
+                    }
+                }
+
                 is UiEvent.NavigateBack -> navController.popBackStack()
                 is UiEvent.ShowSnackbar -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
