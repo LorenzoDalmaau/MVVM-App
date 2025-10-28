@@ -50,6 +50,7 @@ sealed class Route(val route: String) {
 
     /** 🏠 Pantalla principal tras iniciar sesión */
     data object Home : Route("home")
+    data object Map : Route("map")
 
     // ------------------------------------------------------------------------
     // Ejemplo comentado: Ruta con argumentos
@@ -64,4 +65,6 @@ sealed class Route(val route: String) {
     //     // Función helper para construir la ruta con el parámetro
     //     fun build(userId: Int) = "user/$userId"
     // }
+
+
 }

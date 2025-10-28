@@ -50,4 +50,9 @@ interface AuthRepository {
      * normalmente una llamada de red o una operación de I/O.
      */
     suspend fun login(email: String, password: String): Result<Unit>
+
+    /**
+     * TODO Implementar comentarios
+     */
+    suspend fun recoverPassword(email: String): Result<Unit>
 }
