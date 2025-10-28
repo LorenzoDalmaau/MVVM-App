@@ -55,4 +55,9 @@ interface AuthRepository {
      * TODO Implementar comentarios
      */
     suspend fun recoverPassword(email: String): Result<Unit>
+
+    /**
+     * TODO Implementar comentarios
+     */
+    suspend fun register(email: String, password: String): Result<Unit>
 }
