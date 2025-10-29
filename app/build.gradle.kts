@@ -59,10 +59,13 @@ dependencies {
 
     // ✅ Hilt
     implementation(libs.hilt.android)
+    implementation(libs.volley)
     kapt(libs.hilt.compiler)
 
     // ✅ Hilt + Navigation Compose
     implementation(libs.androidx.hilt.navigation.compose)
+
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     // Tests
     testImplementation(libs.junit)
