@@ -310,7 +310,7 @@ class MainActivity : ComponentActivity() {
 ## 💬 Conclusión
 
 > El objetivo de este proyecto no es solo enseñar Compose,  
-> sino enseñar **cómo se construye una app real que escala.**
+> sino enseñar **cómo se construye una app real que escala a nivel empresa.**
 
 Con esta estructura:
 - Puedes cambiar una API sin tocar la UI  
