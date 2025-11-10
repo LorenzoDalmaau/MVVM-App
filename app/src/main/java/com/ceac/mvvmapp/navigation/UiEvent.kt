@@ -26,7 +26,7 @@ package com.ceac.mvvmapp.navigation
  *
  * 🔹 Flujo:
  * ViewModel → UiEvent → HandleNavigationEvents → UI/Navigation
- * ----------------------------------------------------------------------------
+ * ------------ ----------------------------------------------------------------
  */
 sealed class UiEvent {
 
