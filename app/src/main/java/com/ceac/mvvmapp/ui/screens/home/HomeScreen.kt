@@ -17,72 +17,56 @@ import com.ceac.mvvmapp.domain.model.Product
 import com.ceac.mvvmapp.ui.theme.MVVMAppTheme
 
 /**
- * ----------------------------------------------------------------------------
- * HomeScreen.kt
- * ----------------------------------------------------------------------------
+ * Paso 13: UI declarativa de la pantalla Home (stateless).
  *
- * 🔹 Descripción general:
- * Pantalla principal de la aplicación, responsable de **mostrar la lista de productos**.
+ * Explicación:
+ * Esta función composable representa la UI pura de Home. No conoce ViewModel ni lógica
+ * de negocio; recibe un estado inmutable [HomeUiState] y callbacks para notificar acciones.
  *
- * Esta función Composable representa la **UI pura**, sin lógica de negocio:
- * simplemente reacciona al estado (`HomeUiState`) y muestra el contenido adecuado
- * según los tres posibles escenarios:
+ * Renderiza tres escenarios mutuamente excluyentes:
+ * 1) Cargando: indicador centrado.
+ * 2) Error: mensaje y botón de "Reintentar".
+ * 3) Lista: un feed de productos en `LazyColumn`.
  *
- * 1️⃣ **Cargando** → Spinner central (`CircularProgressIndicator`).
- * 2️⃣ **Error** → Mensaje + botón de “Reintentar”.
- * 3️⃣ **Éxito** → Lista de productos (`LazyColumn`).
+ * Diseño:
+ * - Aplica el `contentPadding` del contenedor superior (Scaffold/NavHost).
+ * - Usa spacing centralizado desde el tema (`MVVMAppTheme.spacing`) para consistencia.
+ * - Mantiene la UI predecible y testeable al ser completamente "stateless".
  *
- * ----------------------------------------------------------------------------
- * 🔹 Principios aplicados:
- * ----------------------------------------------------------------------------
- * ✅ **Declaratividad:** la UI refleja exactamente el estado actual.
- * ✅ **Inmutabilidad:** no modifica nada, solo recibe datos y callbacks.
- * ✅ **Reactividad:** Compose se recompone automáticamente si el `state` cambia.
- * ✅ **Desacoplamiento:** no conoce ViewModels, ni navegación, ni lógica de datos.
+ * @param state Estado actual de la pantalla (loading/error/items/paginación).
+ * @param onRetry Acción a ejecutar cuando el usuario decide reintentar la carga tras un error.
+ * @param contentPadding Padding proveniente del contenedor padre (Scaffold).
  *
- * ----------------------------------------------------------------------------
- * 🔹 Parámetros:
- * ----------------------------------------------------------------------------
- * @param state Estado actual de la pantalla (`HomeUiState`).
- * @param onRetry Callback ejecutado cuando el usuario pulsa "Reintentar" tras un error.
- *
- * ----------------------------------------------------------------------------
- * 🔹 Diseño y estructura:
- * ----------------------------------------------------------------------------
- * - Usa `when` para renderizar un estado a la vez (loading, error o lista).
- * - Usa `MVVMAppTheme.spacing` para mantener consistencia visual (márgenes y padding).
- * - Renderiza los productos en una `LazyColumn` para rendimiento óptimo.
- *
- * ----------------------------------------------------------------------------
- * 🔹 Ejemplo de uso:
- * ----------------------------------------------------------------------------
- * ```
- * HomeScreen(
- *     state = uiState,
- *     onRetry = { viewModel.load() }
- * )
- * ```
- * ----------------------------------------------------------------------------
+ * Paso siguiente:
+ * - Añadir soporte de paginación (detectar fin de lista y solicitar `vm.load(page+1)`).
+ * - Exponer un callback `onItemClick(Product)` o `onItemClick(id: String)` para navegares
+ *   desde la lista a un detalle de producto.
  */
 @Composable
 fun HomeScreen(
     state: HomeUiState,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    contentPadding: PaddingValues
 ) {
+    // Spacing centralizado definido en tu tema (márgenes, separaciones, etc.)
     val s = MVVMAppTheme.spacing
 
     when {
-        // 🌀 Estado de carga
+        // 1) Estado de carga: spinner centrado
         state.isLoading -> Box(
-            Modifier.fillMaxSize(),
+            Modifier
+                .fillMaxSize()
+                .padding(contentPadding),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator()
         }
 
-        // ⚠️ Estado de error
+        // 2) Estado de error: mensaje + acción de reintento
         state.error != null -> Box(
-            Modifier.fillMaxSize(),
+            Modifier
+                .fillMaxSize()
+                .padding(contentPadding),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -90,47 +74,54 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(s.md)
             ) {
                 Text(
-                    state.error,
+                    text = state.error,
                     color = MaterialTheme.colorScheme.error
                 )
-                OutlinedButton(onClick = onRetry) { Text("Reintentar") }
+                OutlinedButton(onClick = onRetry) {
+                    Text("Reintentar")
+                }
             }
         }
 
-        // ✅ Estado de éxito: lista de productos
-        else -> LazyColumn(
-            contentPadding = PaddingValues(vertical = s.lg, horizontal = s.lg),
-            verticalArrangement = Arrangement.spacedBy(s.lg)
-        ) {
-            items(state.products, key = { it.id }) { product ->
-                ProductCard(product = product)
+        // 3) Estado de éxito: lista de productos
+        else -> {
+            // Aplica el padding del Scaffold/NavHost en el contenedor raíz
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding)
+            ) {
+                LazyColumn(
+                    contentPadding = PaddingValues(vertical = s.lg, horizontal = s.lg),
+                    verticalArrangement = Arrangement.spacedBy(s.lg),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    /**
+                     * items(list, key) → renderiza cada producto de forma eficiente.
+                     * - key = { it.id } mejora la estabilidad de la lista en recomposiciones.
+                     */
+                    items(state.items, key = { it.id }) { product ->
+                        ProductCard(product = product)
+                    }
+                }
             }
         }
     }
 }
 
 /**
- * ----------------------------------------------------------------------------
- * ProductCard.kt (subcomponente privado dentro de HomeScreen)
- * ----------------------------------------------------------------------------
+ * Subcomponente visual (stateless) que representa una tarjeta de producto.
  *
- * 🔹 Descripción:
- * Componente visual que representa un producto individual dentro de la lista.
- * Muestra su imagen, nombre, descripción y precio, siguiendo el estilo Material3.
+ * Explicación:
+ * - Muestra imagen, nombre, descripción y precio del producto.
+ * - Usa `AsyncImage` (Coil) con `ImageRequest` para carga eficiente y `crossfade`.
+ * - `ContentScale.Crop` asegura una presentación consistente de la imagen.
  *
- * ----------------------------------------------------------------------------
- * 🔹 Por qué está separado:
- * - Mejora la legibilidad del código de la pantalla principal.
- * - Facilita la reutilización y los tests visuales (previews).
- * - Se puede convertir fácilmente en un composable público si se reutiliza en otros módulos.
+ * @param product Entidad de dominio a renderizar.
  *
- * ----------------------------------------------------------------------------
- * 🔹 Detalles técnicos:
- * - Usa `Card` con esquinas grandes (`MaterialTheme.shapes.large`).
- * - `AsyncImage` de la librería **Coil** para carga eficiente de imágenes.
- * - `ContentScale.Crop` recorta la imagen para mantener proporciones.
- * - Usa `TextOverflow.Ellipsis` para evitar textos desbordados.
- * ----------------------------------------------------------------------------
+ * Paso siguiente:
+ * - Añadir parámetro `onClick: (Product) -> Unit` (o `onClick: (String) -> Unit`)
+ *   si deseas soportar navegación a detalle desde la card.
  */
 @Composable
 private fun ProductCard(product: Product) {
@@ -141,7 +132,7 @@ private fun ProductCard(product: Product) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Column {
-            // Imagen del producto
+            // Imagen del producto (Coil + AsyncImage)
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(product.imageUrl)
@@ -157,12 +148,12 @@ private fun ProductCard(product: Product) {
             // Texto del producto
             Column(Modifier.padding(s.lg)) {
                 Text(
-                    product.name,
+                    text = product.name,
                     style = MaterialTheme.typography.titleLarge
                 )
                 Spacer(Modifier.height(s.xs))
                 Text(
-                    product.description,
+                    text = product.description,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis

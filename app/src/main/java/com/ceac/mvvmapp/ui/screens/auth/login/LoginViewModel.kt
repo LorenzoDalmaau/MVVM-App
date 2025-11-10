@@ -1,7 +1,5 @@
 package com.ceac.mvvmapp.ui.screens.auth.login
 
-import android.util.Patterns
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ceac.mvvmapp.domain.usecase.auth.LoginUseCase
@@ -10,167 +8,121 @@ import com.ceac.mvvmapp.navigation.UiEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 /**
- * ----------------------------------------------------------------------------
- * LoginViewModel.kt
- * ----------------------------------------------------------------------------
+ * Paso 15: ViewModel de la pantalla de Login.
  *
- * 🔹 Descripción general:
- * Este ViewModel gestiona toda la **lógica de negocio y validación**
- * del flujo de autenticación (login).
+ * Explicación:
+ * Este ViewModel implementa la capa de **lógica de presentación** de la pantalla de login.
+ * Gestiona el estado reactivo de la UI y coordina la interacción entre la vista
+ * (`LoginScreen`) y la capa de dominio (`LoginUseCase`).
  *
- * Es el intermediario entre la UI (`LoginScreen`) y el dominio (`LoginUseCase`):
- *   - La UI no conoce el caso de uso ni los repositorios.
- *   - El caso de uso no conoce la UI.
- *   - Este ViewModel une ambos mundos.
+ * Su papel dentro de MVVM:
+ * - Recibe eventos del usuario desde la UI (por ejemplo, al escribir o pulsar "Iniciar sesión").
+ * - Actualiza el estado interno (`UiState`) de manera reactiva e inmutable.
+ * - Llama al caso de uso `LoginUseCase` para realizar la autenticación.
+ * - Emite `UiEvent` de un solo uso (como navegación o mostrar snackbar) a la capa de UI.
  *
- * ----------------------------------------------------------------------------
- * 🔹 Contexto arquitectónico:
- * - Capa: **Presentation / ViewModel**
- * - Patrón: **MVVM (Model-View-ViewModel)**
- * - Inyección de dependencias: **Hilt**
- * - Comunicación UI ↔ ViewModel:
- *     - Estado: `StateFlow<LoginUiState>`
- *     - Eventos de navegación: `Channel<UiEvent>`
+ * Ventajas:
+ * - Separa claramente la lógica de negocio de la representación visual.
+ * - Evita efectos secundarios en Compose al usar `StateFlow` y `Channel` para comunicación unidireccional.
+ * - Facilita el testeo y la reutilización de la lógica de login.
  *
- * ----------------------------------------------------------------------------
- * 🔹 Responsabilidades principales:
- * ----------------------------------------------------------------------------
- * ✅ Validar el email y la contraseña del usuario.
- * ✅ Ejecutar el caso de uso `LoginUseCase`.
- * ✅ Actualizar el estado de la UI (loading, errores, etc.).
- * ✅ Emitir eventos de navegación (`UiEvent.Navigate(...)`).
- * ✅ Mantener un código desacoplado y testable.
- *
- * ----------------------------------------------------------------------------
- * 🔹 Ciclo de interacción típico:
- * ----------------------------------------------------------------------------
- * 1️⃣ Usuario escribe → `onEmailChange` / `onPasswordChange`
- * 2️⃣ ViewModel actualiza `state` con errores o valores nuevos
- * 3️⃣ Usuario pulsa “Entrar” → `onLoginClick`
- * 4️⃣ Se validan los campos y se ejecuta `LoginUseCase`
- * 5️⃣ Si el login es correcto → `UiEvent.Navigate(Route.Home)`
- * 6️⃣ Si falla → Se muestra el error (`submitError`)
- *
- * ----------------------------------------------------------------------------
- * 🔹 Ejemplo visual de flujo:
- * ----------------------------------------------------------------------------
- * LoginScreen ➜ LoginViewModel ➜ LoginUseCase ➜ FakeAuthRepository
- *          ⬑────────── state / UiEvent ───────────⬏
- * ----------------------------------------------------------------------------
+ * Dependencias:
+ * - `LoginUseCase`: caso de uso del dominio responsable de autenticar al usuario y
+ *   persistir los tokens mediante el repositorio de autenticación.
  */
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val loginUseCase: LoginUseCase,
-    private val savedStateHandle: SavedStateHandle // Permite guardar/restaurar estado tras rotación
+    private val loginUseCase: LoginUseCase
 ) : ViewModel() {
 
-    // 🔸 STATE: Estado observable que representa los datos del formulario
-    private val _state = MutableStateFlow(LoginUiState())
-    val state: StateFlow<LoginUiState> = _state.asStateFlow()
+    /**
+     * Representa el estado inmutable de la UI de Login.
+     *
+     * Propiedades:
+     * @param email Campo de correo electrónico actual.
+     * @param password Contraseña actual.
+     * @param isLoading Indica si se está procesando una autenticación.
+     * @param error Mensaje de error mostrado en caso de fallo.
+     */
+    data class UiState(
+        val email: String = "",
+        val password: String = "",
+        val isLoading: Boolean = false,
+        val error: String? = null
+    )
 
-    // 🔸 EVENTS: Canal de comunicación con la UI (navegación, mensajes, etc.)
+    /** Estado observable de la pantalla (única fuente de verdad para la UI). */
+    private val _state = MutableStateFlow(UiState())
+    val state: StateFlow<UiState> = _state.asStateFlow()
+
+    /** Canal para eventos efímeros de UI (navegación, snackbars, etc.). */
     private val _events = Channel<UiEvent>(Channel.BUFFERED)
-    val events = _events.receiveAsFlow()
+    val events: Flow<UiEvent> = _events.receiveAsFlow()
 
     /**
-     * 📨 Se ejecuta cada vez que el usuario cambia el email.
-     * Actualiza el estado y valida el formato.
+     * Paso 15.1: Actualiza el campo email en el estado actual.
+     * @param v Nuevo valor introducido por el usuario.
      */
-    fun onEmailChange(v: String) {
-        _state.value = _state.value.copy(
-            email = v,
-            emailError = validateEmail(v),
-            submitError = null // Reset del error global al volver a escribir
-        )
-    }
+    fun onEmailChanged(v: String) =
+        _state.update { it.copy(email = v, error = null) }
 
     /**
-     * 🔒 Se ejecuta cada vez que el usuario cambia la contraseña.
-     * Actualiza el estado y valida longitud mínima.
+     * Paso 15.2: Actualiza el campo password en el estado actual.
+     * @param v Nuevo valor introducido por el usuario.
      */
-    fun onPasswordChange(v: String) {
-        _state.value = _state.value.copy(
-            password = v,
-            passwordError = validatePassword(v),
-            submitError = null
-        )
-    }
+    fun onPasswordChanged(v: String) =
+        _state.update { it.copy(password = v, error = null) }
 
     /**
-     * 🚀 Lógica principal de login.
-     * Valida campos, muestra loading, ejecuta el caso de uso
-     * y emite eventos según el resultado.
+     * Paso 15.3: Ejecuta la acción de login.
+     *
+     * Flujo de ejecución:
+     * 1) Cambia el estado a `isLoading = true`.
+     * 2) Llama al caso de uso `LoginUseCase` con las credenciales actuales.
+     * 3) Según el resultado:
+     *    - Éxito → navega a [Route.Home].
+     *    - Error → muestra el mensaje en el estado.
+     * 4) Restaura `isLoading = false` al finalizar.
      */
     fun onLoginClick() = viewModelScope.launch {
-        val s = _state.value
+        _state.update { it.copy(isLoading = true, error = null) }
 
-        // 1️⃣ Validación previa
-        val eErr = validateEmail(s.email)
-        val pErr = validatePassword(s.password)
-        if (eErr != null || pErr != null) {
-            _state.value = s.copy(emailError = eErr, passwordError = pErr)
-            return@launch
-        }
-
-        // 2️⃣ Mostrar indicador de carga
-        _state.value = s.copy(isLoading = true, submitError = null)
-
-        // 3️⃣ Ejecutar el caso de uso
+        val s = state.value
         val result = loginUseCase(s.email, s.password)
 
-        // 4️⃣ Ocultar loading
-        _state.value = _state.value.copy(isLoading = false)
-
-        // 5️⃣ Resultado del login
-        result.onSuccess {
-            _events.send(
-                UiEvent.Navigate(
-                    route = Route.Home.route,
-                    popUpTo = Route.Login.route,
-                    inclusive = true
+        result.fold(
+            onSuccess = {
+                _events.send(
+                    UiEvent.Navigate(
+                        route = Route.Home.route,
+                        popUpTo = Route.Login.route,
+                        inclusive = true
+                    )
                 )
-            )
-        }.onFailure { ex ->
-            _state.value = _state.value.copy(
-                submitError = ex.message ?: "Error desconocido"
-            )
-        }
+            },
+            onFailure = { ex ->
+                _state.update { it.copy(error = ex.message ?: "Credenciales inválidas") }
+            }
+        )
+
+        _state.update { it.copy(isLoading = false) }
     }
 
     /**
-     * 🧾 Navega hacia la pantalla de registro.
+     * Paso 15.4: Navega hacia la pantalla de registro.
      */
     fun onRegisterClick() = viewModelScope.launch {
         _events.send(UiEvent.Navigate(Route.Register.route))
     }
 
     /**
-     * 🔁 Navega hacia la pantalla de recuperación de contraseña.
+     * Paso 15.5: Navega hacia la pantalla de recuperación de contraseña.
      */
     fun onRecoverClick() = viewModelScope.launch {
         _events.send(UiEvent.Navigate(Route.RecoverPassword.route))
     }
-
-    /**
-     * ✉️ Valida el formato del email usando expresión regular de Android.
-     */
-    private fun validateEmail(e: String): String? =
-        when {
-            e.isBlank() -> "El email es obligatorio"
-            !Patterns.EMAIL_ADDRESS.matcher(e).matches() -> "Formato de email no válido"
-            else -> null
-        }
-
-    /**
-     * 🔑 Valida la longitud mínima de la contraseña.
-     */
-    private fun validatePassword(p: String): String? =
-        if (p.length < 4) "Mínimo 4 caracteres" else null
 }

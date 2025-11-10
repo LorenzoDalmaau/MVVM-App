@@ -81,5 +81,5 @@ class LoginUseCase @Inject constructor(
      * (como una llamada a red o una consulta en base de datos).
      */
     suspend operator fun invoke(email: String, password: String): Result<Unit> =
-        repo.login(email.trim(), password)
+        repo.login(email, password)
 }

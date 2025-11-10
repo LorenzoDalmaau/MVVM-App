@@ -3,57 +3,70 @@ package com.ceac.mvvmapp.ui.screens.home
 import com.ceac.mvvmapp.domain.model.Product
 
 /**
- * ----------------------------------------------------------------------------
- * HomeUiState.kt
- * ----------------------------------------------------------------------------
+ * Paso 10: Definición del estado inmutable de la pantalla Home (`HomeUiState`).
  *
- * 🔹 Descripción general:
- * Representa el **estado inmutable de la pantalla Home**.
+ * Explicación:
+ * En el patrón **MVVM con Jetpack Compose**, la interfaz de usuario (UI)
+ * se representa siempre a partir de un único estado inmutable.
+ * En lugar de modificar directamente los elementos de la pantalla,
+ * el ViewModel actualiza una instancia de este estado,
+ * y Compose se recompone automáticamente.
  *
- * En el patrón **MVVM + Jetpack Compose**, la UI no pregunta “qué hacer”:
- * simplemente observa este estado, y se recompone automáticamente cada vez
- * que cambia.
+ * Este enfoque facilita:
+ * - Pruebas unitarias más sencillas (el estado es un único objeto).
+ * - Depuración clara (puedes ver exactamente en qué estado estaba la UI).
+ * - Eliminación de inconsistencias o “glitches” visuales.
  *
- * Este enfoque garantiza que la interfaz sea **reactiva, predecible y testeable**.
+ * Arquitectura:
+ * - Pertenece a la capa **presentation → ui.screens.home**.
+ * - Es emitido por `HomeViewModel` como un `StateFlow<HomeUiState>`.
+ * - Es observado desde `HomeEntry` o `HomeScreen` mediante `collectAsState()`.
  *
- * ----------------------------------------------------------------------------
- * 🔹 Propiedades:
- * ----------------------------------------------------------------------------
- * @param isLoading Indica si los datos se están cargando (mostrar spinner).
- * @param products Lista de productos ya cargados desde el dominio/repositorio.
- * @param error Mensaje de error si la carga falla; `null` si no hay error.
- *
- * ----------------------------------------------------------------------------
- * 🔹 Ejemplo de ciclo de vida:
- * ----------------------------------------------------------------------------
- * 1️⃣ Inicial → `isLoading = true`, `products = []`, `error = null`
- * 2️⃣ Éxito → `isLoading = false`, `products = [ ... ]`, `error = null`
- * 3️⃣ Error → `isLoading = false`, `products = []`, `error = "Error al cargar"`
- *
- * En Compose, cada uno de estos estados produce una **UI distinta**:
- * - Loading → Spinner centrado
- * - Error → Mensaje + botón “Reintentar”
- * - Éxito → Lista de productos
- *
- * ----------------------------------------------------------------------------
- * 🔹 Principios aplicados:
- * ----------------------------------------------------------------------------
- * ✅ **Inmutabilidad:** Cada cambio crea una nueva instancia del estado.
- * ✅ **Unidireccionalidad:** El ViewModel emite → la UI reacciona.
- * ✅ **Simplicidad:** Una sola fuente de verdad para toda la pantalla.
- *
- * ----------------------------------------------------------------------------
- * 🔹 Ejemplo de uso en el ViewModel:
- * ----------------------------------------------------------------------------
+ * Flujo de uso:
  * ```
- * _state.value = HomeUiState(isLoading = true)
- * val result = getProductsUseCase()
- * _state.value = HomeUiState(products = result)
+ * ViewModel → (emite) → HomeUiState → (observa) → UI
  * ```
- * ----------------------------------------------------------------------------
+ *
+ * Paso siguiente:
+ * Implementar el `HomeViewModel`, que gestionará la lógica
+ * para cargar productos desde el backend usando el `GetProductsUseCase`
+ * y emitirá nuevas instancias de este estado.
  */
 data class HomeUiState(
+
+    /**
+     * Indica si la pantalla se encuentra actualmente cargando datos.
+     * Cuando es `true`, la UI muestra un `CircularProgressIndicator`.
+     */
     val isLoading: Boolean = false,
-    val products: List<Product> = emptyList(),
-    val error: String? = null
+
+    /**
+     * Lista de productos obtenidos desde el dominio o backend.
+     * Si está vacía, la pantalla puede mostrar un estado inicial o un mensaje vacío.
+     */
+    val items: List<Product> = emptyList(),
+
+    /**
+     * Mensaje de error en caso de fallo durante la carga.
+     * Si es `null`, se asume que no hay errores activos.
+     */
+    val error: String? = null,
+
+    /**
+     * Página actual usada en la paginación de productos.
+     * Inicia en 0 y se incrementa con cada nueva carga de más datos.
+     */
+    val page: Int = 0,
+
+    /**
+     * Tamaño del lote de productos solicitados por cada petición.
+     * Normalmente se usa en el endpoint `/products?page=x&size=y`.
+     */
+    val size: Int = 20,
+
+    /**
+     * Indica si se ha llegado al final de la lista (no hay más productos que cargar).
+     * Esto permite optimizar la UI para no seguir pidiendo páginas vacías.
+     */
+    val endReached: Boolean = false
 )

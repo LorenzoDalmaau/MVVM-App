@@ -1,6 +1,5 @@
 package com.ceac.mvvmapp.ui.screens.home
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ceac.mvvmapp.domain.usecase.GetProductsUseCase
@@ -8,93 +7,129 @@ import com.ceac.mvvmapp.navigation.UiEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 /**
- * ----------------------------------------------------------------------------
- * HomeViewModel.kt
- * ----------------------------------------------------------------------------
+ * Paso 11: Orquestación de estado y eventos de la pantalla Home.
  *
- * 🔹 Descripción general:
- * ViewModel de la pantalla Home. Orquesta la **carga de productos** usando el
- * caso de uso `GetProductsUseCase`, gestiona el **estado de UI** (`HomeUiState`)
- * y emite **eventos efímeros** (`UiEvent`) para la capa de presentación.
+ * Explicación:
+ * Este ViewModel actúa como el “cerebro” de la pantalla Home. Se encarga de:
+ * - Gestionar el estado inmutable [HomeUiState] expuesto como [StateFlow].
+ * - Disparar la carga de productos mediante el caso de uso [GetProductsUseCase].
+ * - Emitir eventos de UI de un solo uso ([UiEvent]) como navegación o snackbars.
  *
- * 🔹 Patrón arquitectónico:
- * - Capa: **Presentation / ViewModel** (MVVM + Clean Architecture)
- * - Flujo: UI → acciones (onRetry) → ViewModel → UseCase → Repository → (resultado)
- * - Estado unidireccional: el ViewModel **emite** estado, la UI **observa**.
+ * Arquitectura y responsabilidades:
+ * - Capa de presentación (MVVM). No conoce detalles de red ni de frameworks de UI.
+ * - Orquesta el flujo: UI → acción de usuario → ViewModel → UseCase → Repository → DTO → Dominio → nuevo estado → UI.
  *
- * 🔹 Responsabilidades:
- * - Exponer el estado de Home (`isLoading`, `products`, `error`).
- * - Ejecutar la carga inicial y el reintento (`load()`).
- * - No conoce detalles de infraestructura (Retrofit/Room); habla con el dominio.
+ * Consideraciones:
+ * - El estado se actualiza con `_state.update { it.copy(...) }` para mantener inmutabilidad y claridad.
+ * - Los efectos de un solo uso se emiten por `Channel` → `Flow` para evitar duplicidades tras recomposición.
  *
- * 🔹 Eventos de UI:
- * - `_events` permite enviar señales puntuales (snackbar, navegación…).
- *   En este ViewModel de ejemplo no se usan aún, pero queda preparado para
- *   futuros flujos (p.ej., abrir detalle de producto).
- *
- * 🔹 SavedStateHandle (opcional):
- * - Útil si quieres **persistir filtros, scroll** o parámetros de navegación
- *   entre recreaciones de proceso/rotaciones. Si no se usa, puede eliminarse.
- *
- * ----------------------------------------------------------------------------
- * 🔹 Extensiones recomendadas (futuro “empresa real”):
- * ----------------------------------------------------------------------------
- * - **Paginación** (Paging 3) si la lista es larga.
- * - **Retry/backoff** exponencial en errores de red.
- * - **Cache local** (Room) + política offline-first.
- * - **UI events** para feedback (snackbar “Actualizado”, etc.).
- * - **collectAsStateWithLifecycle** en UI para consumo lifecycle-aware.
- * - **Tests** unitarios del load() con repositorio fake.
- * ----------------------------------------------------------------------------
+ * Paso siguiente:
+ * Conectar este ViewModel a la UI declarativa mediante un “Entry” que observe `state` y escuche `events`,
+ * y una `HomeScreen` stateless que reciba solo datos y callbacks.
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getProducts: GetProductsUseCase,
-    private val savedStateHandle: SavedStateHandle // ❗️Opcional: elimínalo si no lo usas
+    /** Caso de uso de dominio para obtener productos paginados. */
+    private val getProducts: GetProductsUseCase
 ) : ViewModel() {
 
-    // Estado observable por la UI
-    private val _state = MutableStateFlow(HomeUiState(isLoading = true))
+    // -------------------------------------------------------------------------
+    // Estado observable (UI State)
+    // -------------------------------------------------------------------------
+
+    /** Flujo interno mutable que contiene el estado actual de la pantalla. */
+    private val _state = MutableStateFlow(HomeUiState())
+
+    /**
+     * Flujo público inmutable para que la UI observe el estado.
+     * Compose lo consumirá típicamente con `collectAsState()`.
+     */
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
-    // Eventos efímeros (navegación/snackbar). Preparado para futuras acciones.
+    // -------------------------------------------------------------------------
+    // Eventos de UI (one-shot)
+    // -------------------------------------------------------------------------
+
+    /** Canal para efectos de un solo uso: navegación, snackbars, etc. */
     private val _events = Channel<UiEvent>(Channel.BUFFERED)
-    val events = _events.receiveAsFlow()
+
+    /** Flujo de solo lectura de eventos para la UI. */
+    val events: Flow<UiEvent> = _events.receiveAsFlow()
+
+    // -------------------------------------------------------------------------
+    // Inicialización
+    // -------------------------------------------------------------------------
 
     init {
-        // Carga inicial al crear el ViewModel
+        // Carga inicial de la primera página nada más crear el VM.
         load()
     }
 
-    /**
-     * Carga (o recarga) la lista de productos.
-     *
-     * Estrategia:
-     * 1) Marca loading y limpia error.
-     * 2) Ejecuta el caso de uso.
-     * 3) Publica el resultado en el estado:
-     *    - Éxito  → lista en `products`.
-     *    - Error   → mensaje en `error`.
-     */
-    fun load() = viewModelScope.launch {
-        _state.value = _state.value.copy(isLoading = true, error = null)
+    // -------------------------------------------------------------------------
+    // Acciones públicas
+    // -------------------------------------------------------------------------
 
-        runCatching { getProducts() }
-            .onSuccess { list ->
-                _state.value = HomeUiState(isLoading = false, products = list)
+    /**
+     * Carga o recarga la lista de productos desde el backend usando el caso de uso.
+     *
+     * Flujo de ejecución:
+     * 1) Prevención de concurrencia: si ya está cargando o se alcanzó el final, retorna.
+     * 2) Marca `isLoading = true` y resetea `error`.
+     * 3) Invoca `getProducts(page, size)` que devuelve `Result<List<Product>>`.
+     * 4) En `onSuccess`: concatena resultados (si `page > 0`) y marca `endReached` si la lista recibida es menor que `size`.
+     * 5) En `onFailure`: setea `error` y emite un `UiEvent.ShowSnackbar` informativo.
+     *
+     * @param page Número de página a cargar. Por defecto, usa el del estado actual.
+     * @param size Tamaño de página. Por defecto, usa el del estado actual.
+     */
+    fun load(
+        page: Int = state.value.page,
+        size: Int = state.value.size
+    ) = viewModelScope.launch {
+        // Evita cargas simultáneas o seguir pidiendo si ya no hay más resultados
+        if (_state.value.isLoading || _state.value.endReached) return@launch
+
+        // 1) Indicador de carga y limpieza de error previo
+        _state.update { it.copy(isLoading = true, error = null) }
+
+        // 2) Llamada al caso de uso (dominio)
+        val result = getProducts(page, size)
+
+        // 3) Interpretación del resultado
+        result.fold(
+            onSuccess = { list ->
+                val reachedEnd = list.size < size
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        items = if (page == 0) list else it.items + list,
+                        page = page,
+                        size = size,
+                        endReached = reachedEnd,
+                        error = null
+                    )
+                }
+            },
+            onFailure = { ex ->
+                _state.update { it.copy(isLoading = false, error = ex.message ?: "Error de carga") }
+                _events.send(UiEvent.ShowSnackbar(ex.message ?: "No se pudieron cargar los productos"))
             }
-            .onFailure { ex ->
-                _state.value = HomeUiState(
-                    isLoading = false,
-                    error = ex.message ?: "Error al cargar productos"
-                )
-            }
+        )
+    }
+
+    /**
+     * Solicita una navegación a la pantalla de detalle del producto.
+     *
+     * Nota:
+     * - El ViewModel no conoce NavController. Emite un [UiEvent] que será interpretado por la capa de UI.
+     *
+     * @param id Identificador del producto al que se desea navegar.
+     */
+    fun navigateToDetail(id: String) = viewModelScope.launch {
+        _events.send(UiEvent.Navigate(route = "detail/$id"))
     }
 }

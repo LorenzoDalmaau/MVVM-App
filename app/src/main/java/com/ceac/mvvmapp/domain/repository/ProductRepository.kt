@@ -60,5 +60,5 @@ interface ProductRepository {
      * products.forEach { println(it.name) }
      * ```
      */
-    suspend fun getProducts(): List<Product>
+    suspend fun getProducts(page: Int, size: Int): Result<List<Product>>
 }

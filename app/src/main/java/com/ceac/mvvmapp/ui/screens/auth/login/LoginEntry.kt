@@ -1,54 +1,69 @@
 package com.ceac.mvvmapp.ui.screens.auth.login
 
-import com.ceac.mvvmapp.ui.screens.login.LoginScreen
-
+import androidx.compose.runtime.*
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import androidx.compose.material3.SnackbarHostState
 import com.ceac.mvvmapp.navigation.HandleNavigationEvents
 
 /**
- * ----------------------------------------------------------------------------
- * LoginEntry.kt
- * ----------------------------------------------------------------------------
- * Punto de entrada de la pantalla de Login:
- * - Inyecta el ViewModel con Hilt.
- * - Conecta eventos de navegación (UiEvent) con NavController/Snackbar.
- * - Recoge el estado y lo pasa a la UI pura (LoginScreen).
+ * Paso 14: Entry point de la pantalla de Login (conexión VM ↔ UI).
  *
- * Mantiene el “wiring” (VM ↔ UI ↔ Nav) fuera del grafo y de MainActivity.
- * ----------------------------------------------------------------------------
+ * Explicación:
+ * Este composable es el punto de entrada de la pantalla de autenticación.
+ * Actúa como “container” o intermediario entre la lógica del ViewModel y la UI
+ * declarativa (`LoginScreen`), sin contener lógica de negocio.
+ *
+ * Responsabilidades:
+ * - Obtener el ViewModel mediante Hilt (`hiltViewModel()`).
+ * - Suscribirse al estado expuesto por el VM (correo, contraseña, loading, error).
+ * - Escuchar eventos efímeros (navegación, snackbars, etc.) mediante `HandleNavigationEvents`.
+ * - Pasar el estado y callbacks a la UI pura (`LoginScreen`).
+ *
+ * Ventajas:
+ * - Desacopla la UI del framework de inyección y del ciclo de vida.
+ * - Facilita testing y mantenimiento al seguir el patrón MVVM + Compose.
+ *
+ * @param navController Controlador de navegación (para desplazarse entre pantallas).
+ * @param snackbarHostState Host global para mostrar mensajes transitorios.
+ * @param contentPadding Padding superior proporcionado por el `Scaffold` padre.
+ *
+ * Paso siguiente:
+ * - Documentar el `LoginViewModel` para detallar cómo maneja los eventos de UI
+ *   (`onEmailChanged`, `onPasswordChanged`, `onLoginClick`, etc.) y comunica
+ *   resultados o errores al estado y los eventos.
+ * - Asegurarse de que `LoginScreen` es “stateless”, recibiendo únicamente datos
+ *   y callbacks, sin dependencias directas de ViewModel.
  */
-
-
 @Composable
 fun LoginEntry(
     navController: NavHostController,
     snackbarHostState: SnackbarHostState,
     contentPadding: PaddingValues
 ) {
-    // VM con scope del destino en el NavHost
+    // 1) Inyección del ViewModel de la pantalla de login
     val vm: LoginViewModel = hiltViewModel()
 
-    // Suscribe los eventos del VM (Navigate, Snackbar, Back…)
-    HandleNavigationEvents(navController, snackbarHostState, vm.events)
+    // 2) Manejo centralizado de efectos de UI efímeros (snackbars / navegación)
+    HandleNavigationEvents(
+        navController = navController,
+        snackbarHostState = snackbarHostState,
+        events = vm.events
+    )
 
-    // Estado de la pantalla
-    // val state by vm.state.collectAsStateWithLifecycle() // ← si tienes lifecycle-runtime-compose
+    // 3) Observación reactiva del estado del ViewModel
+    // Si dispones de lifecycle-runtime-compose, se recomienda collectAsStateWithLifecycle()
     val state by vm.state.collectAsState()
 
+    // 4) Renderizado de la UI declarativa (LoginScreen)
     LoginScreen(
         state = state,
-        onEmailChange = vm::onEmailChange,
-        onPasswordChange = vm::onPasswordChange,
-        onLoginClick = vm::onLoginClick,
-        onRegisterClick = vm::onRegisterClick,
-        onRecoverClick = vm::onRecoverClick,
-        // Respeta el padding que venga del Scaffold/NavHost superior
+        onEmailChange = vm::onEmailChanged,         // Callback para cambios de email
+        onPasswordChange = vm::onPasswordChanged,   // Callback para cambios de password
+        onLoginClick = vm::onLoginClick,            // Acción principal (login)
+        onRegisterClick = vm::onRegisterClick,      // Ir a pantalla de registro
+        onRecoverClick = vm::onRecoverClick,        // Ir a recuperación de contraseña
         contentPadding = contentPadding
     )
 }
